@@ -1,61 +1,78 @@
-# LEAP 交互式细胞谱系树（静态版）
+# LEAP Interactive Cell Lineage Tree
 
-**纯静态站点**，可直接用 GitHub Pages 公开托管，无需服务器、无需任何运行时。
-交互（缩放 / 平移 / 框选 / 双击选子树 / 颜色图例联动 / 饼图 / 表格）全部在前端用
-D3 + Plotly + DataTables 实现。
+An interactive, in-browser visualization of zebrafish **cell lineage trees**. Each tree
+shows how individual cells relate across development, with every node colored by its
+cell type. Explore the lineage, select cells in several ways, and instantly see how the
+cell-type composition of your selection is distributed.
 
-> 本文件夹 `LEAP_web/` 是一个**自包含、可独立发布**的项目，建议作为独立仓库推送到 GitHub。
+**Live demo:** https://shadowdeng1994.github.io/LEAP_web/
 
-## 目录结构
+No installation or login required — everything runs locally in your browser.
 
-```
-LEAP_web/
-├─ docs/                 # ← 静态站点根目录（GitHub Pages 从这里发布）
-│  ├─ index.html
-│  ├─ css/style.css
-│  ├─ js/app.js
-│  ├─ data/              # 站点数据（JSON：数据集 + 颜色表 + 清单）
-│  ├─ vendor/            # 内置前端库（离线自包含，无外部 CDN 依赖）
-│  └─ .nojekyll          # 关闭 Jekyll 处理，保证原样发布
-├─ .gitignore
-└─ README.md
-```
+---
 
-## 本地预览
+## Features
 
-静态站需通过 HTTP 打开（直接双击 `index.html` 会因浏览器 `file://` 跨域限制无法读取 JSON）。
-任选一种本地服务器，根目录指向 `docs/`：
+- **30 lineage trees** to choose from (e.g. `ZF_1.HMF1` … `ZF_15.HMF2`), switchable from a dropdown.
+- **Circular lineage tree** with nodes colored by cell type; hover any node for its name and annotation.
+- **Smooth zoom & pan** — scroll to zoom, drag to pan.
+- **Multiple ways to select cells** — click, box-select, double-click a subtree, or select by cell type from the legend.
+- **Interactive color legend** — select all cells of a given type in one click, and even recolor types on the fly.
+- **Live cell-type distribution** — pie charts update instantly to show the composition of your selection.
+- **Detailed data table** of the selected nodes with search, sorting and pagination.
+- **Display options** — grayscale mode and a log-transform of branch depth.
 
-```powershell
-# 方式 A：Python
-cd docs; python -m http.server 8000
-# 浏览器打开 http://localhost:8000
+---
 
-# 方式 B：Node
-npx serve docs
+## How to use
 
-# 方式 C：任意静态服务器，把站点根设为 docs/
-```
+### 1. Choose a tree
+Use the **dataset dropdown** in the left sidebar to load a different lineage tree.
 
-## 发布到 GitHub Pages（让别人也能访问）
+### 2. Navigate
+- **Zoom:** scroll the mouse wheel.
+- **Pan:** click and drag the background.
+- **Inspect a node:** hover over it to see its name and annotation in a tooltip.
 
-站点在 `docs/`，用 GitHub 自带的“从分支部署”即可，**零配置、无需 Actions**。
+### 3. Select cells
+There are several ways to build a selection (all of them update the table and pie charts below):
 
-1. 在 GitHub 新建一个**公开**仓库（Public），例如 `LEAP-web`。
-2. 进入本文件夹 `LEAP_web/` 初始化并推送：
-   ```powershell
-   cd LEAP_web
-   git init
-   git add .
-   git commit -m "LEAP static site"
-   git branch -M main
-   git remote add origin https://github.com/<你的用户名>/LEAP-web.git
-   git push -u origin main
-   ```
-3. 打开仓库 **Settings → Pages**：
-   - Source 选 **Deploy from a branch**
-   - Branch 选 **main**，目录选 **/docs**，点 **Save**
-4. 约 1 分钟后，公开地址即：
-   `https://<你的用户名>.github.io/LEAP-web/`
+| Action | Result |
+| --- | --- |
+| **Click** a node | Toggle that single node in / out of the selection |
+| **Shift + drag** | Draw a rectangle to box-select every node inside it |
+| **Double-click** a node | Select that node **and all of its descendants** (the whole subtree) |
+| **Esc** key or the **Cancel selection** button | Clear the current selection |
 
-> 站点全部使用相对路径（`./data/...`、`./vendor/...`），挂在项目子路径 `/<repo>/` 下也能正常工作。
+Selected nodes are highlighted in red.
+
+### 4. Use the color legend (select by cell type)
+The left sidebar lists every color and the cell type(s) it represents.
+
+- **Click a legend name** to select all cells of that color. Clicking repeatedly **cycles** through four modes:
+  1. **Tip** — only terminal cells (tips) of that type
+  2. **Internal** — only internal nodes of that type
+  3. **Tip + Internal** — all nodes of that type
+  4. **Internal + Desc** — internal nodes of that type **plus all of their descendants**
+- **Click the color swatch** to open a color picker and recolor that cell type in the tree.
+
+### 5. Inspect your selection
+Open the **“Selected node details”** panel at the bottom:
+
+- **Left — data table:** one row per selected node (`node`, `label`, `isTip`, `TipAnn`,
+  `Depth`, `branch.length`, `ParentLabel`, `ParentAnn`), with search, column sorting and pagination.
+- **Right — pie charts:** the **cell-type distribution** of your selection, shown separately for
+  selected **tips** and selected **internal** nodes. Hover a slice for counts and percentages
+  (the internal-node chart also breaks each type down by developmental stage, in hpf).
+
+### 6. Display options
+- **Grayscale:** toggle **“置灰显示 / Grayscale”** to render all nodes in gray (useful for focusing on tree shape).
+- **Log-transform:** the slider applies a log transform (with a pseudocount offset) to branch depth,
+  which compresses long branches and spreads out short ones.
+
+---
+
+## Notes
+
+- The page is fully static and self-contained (D3 + Plotly + DataTables); it works offline once loaded.
+- If the tree looks empty on first open, give it a moment to load the dataset.
