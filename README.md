@@ -5,9 +5,10 @@ shows how individual cells relate across development, with every node colored by
 cell type. Explore the lineage, select cells in several ways, and instantly see how the
 cell-type composition of your selection is distributed.
 
-**Live demo:** https://shadowdeng1994.github.io/LEAP_web/
+**👉 Open it here (no download, no install, no sign-up):** https://shadowdeng1994.github.io/LEAP_web/
 
-No installation or login required — everything runs locally in your browser.
+This is a hosted web app — just click the link above and explore right away in your browser.
+Everything below is a guide to using the page online.
 
 ---
 
@@ -72,7 +73,8 @@ Open the **“Selected node details”** panel at the bottom:
 
 ---
 
-## Notes
+## Tips
 
-- The page is fully static and self-contained (D3 + Plotly + DataTables); it works offline once loaded.
-- If the tree looks empty on first open, give it a moment to load the dataset.
+- Everything happens live on the page — there is nothing to download or install, just use the link above.
+- On first load, give the page a moment to fetch the tree data before the canvas appears.
+- A modern desktop browser (Chrome, Edge, Firefox, Safari) gives the smoothest zoom and selection experience.

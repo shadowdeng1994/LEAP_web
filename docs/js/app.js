@@ -50,7 +50,7 @@
   function circleColor(c) { return state.gray ? GRAY : colorBase(c); }
 
   function parseAnn(a) {
-    if (!a) return { ct: "(未标注)", stage: null };
+    if (!a) return { ct: "(unlabeled)", stage: null };
     var li = a.lastIndexOf("|"), fi = a.indexOf("|");
     var ct = li < 0 ? a : a.slice(li + 1);
     var stage = fi < 0 ? null : a.slice(0, fi);
@@ -119,6 +119,15 @@
   // =========================================================================
   // 场景构建 / 更新
   // =========================================================================
+  // 节点形状：terminal node = 三角形，internal node = 圆形
+  var SYM_CIRCLE = d3.symbol().type(d3.symbolCircle).size(16);
+  var SYM_TRI = d3.symbol().type(d3.symbolTriangle).size(24);
+  function symbolD(i) { return state.isTip[i] ? SYM_TRI() : SYM_CIRCLE(); }
+  function nodeTransform(i) {
+    var s = state.selected.has(state.label[i]) ? 1.7 : 1;
+    return "translate(" + state.bx[i] + "," + state.by[i] + ") scale(" + s + ")";
+  }
+
   function buildScene() {
     viewportSel.selectAll("*").remove();
     var nonRoot = state.idxArray.filter(function (i) { return i !== state.rootIdx; });
@@ -127,10 +136,12 @@
       .selectAll("path").data(nonRoot).join("path")
       .attr("class", "branch");
 
-    var g = viewportSel.append("g").attr("class", "nodes")
-      .selectAll("circle").data(state.idxArray).join("circle")
+    viewportSel.append("g").attr("class", "nodes")
+      .selectAll("path").data(state.idxArray).join("path")
       .attr("class", "node")
-      .attr("r", 2)
+      .attr("d", symbolD)
+      .attr("fill", function (i) { return circleColor(state.col[i]); })
+      .attr("transform", nodeTransform)
       .on("mouseover", function (ev, i) {
         if (!this.classList.contains("selected")) d3.select(this).attr("fill", "#F1C40F");
         showTooltip(ev, i);
@@ -156,13 +167,11 @@
 
   function updatePositions() {
     viewportSel.select(".branches").selectAll("path").attr("d", branchPath);
-    viewportSel.select(".nodes").selectAll("circle")
-      .attr("cx", function (i) { return state.bx[i]; })
-      .attr("cy", function (i) { return state.by[i]; });
+    viewportSel.select(".nodes").selectAll("path").attr("transform", nodeTransform);
   }
 
   function updateColors() {
-    viewportSel.select(".nodes").selectAll("circle")
+    viewportSel.select(".nodes").selectAll("path")
       .attr("fill", function (i) {
         return this.classList.contains("selected") ? "#E74C3C" : circleColor(state.col[i]);
       });
@@ -189,11 +198,14 @@
     return out;
   }
   function applySelection() {
-    viewportSel.select(".nodes").selectAll("circle")
+    var nodes = viewportSel.select(".nodes").selectAll("path")
       .classed("selected", function (i) { return state.selected.has(state.label[i]); })
       .attr("fill", function (i) {
         return state.selected.has(state.label[i]) ? "#E74C3C" : circleColor(state.col[i]);
-      });
+      })
+      .attr("transform", nodeTransform);
+    // 把选中的节点提到最上层，避免被相邻节点遮挡
+    nodes.filter(function (i) { return state.selected.has(state.label[i]); }).raise();
     if (state.accOpen) { updateTable(); updatePies(); }
   }
 
@@ -201,8 +213,8 @@
   // Tooltip
   // =========================================================================
   function showTooltip(ev, i) {
-    tooltip.innerHTML = "<b>节点名称:</b> " + esc(state.label[i]) +
-                        "<br><b>节点类型:</b> " + esc(state.tipAnn[i] || "");
+    tooltip.innerHTML = "<b>Node:</b> " + esc(state.label[i]) +
+                        "<br><b>Type:</b> " + esc(state.tipAnn[i] || "");
     tooltip.style.display = "block";
     moveTooltip(ev);
   }
@@ -323,7 +335,7 @@
       sw.className = "leap-color-picker";
       sw.setAttribute("data-color", c);
       sw.value = toHex6(colorBase(c));
-      sw.title = "点击换颜色（可调色板或输入 #hex）";
+      sw.title = "Click to recolor (pick a color or enter a #hex)";
       sw.addEventListener("click", function (e) { e.stopPropagation(); });
       sw.addEventListener("change", function () {
         state.overrides[c] = sw.value;
@@ -404,7 +416,7 @@
       scrollX: true,
       dom: "lfrtip",
       order: [],
-      language: { emptyTable: "提示：可按住 Shift 框选、双击选子树，或点击左侧颜色图例按颜色勾选，此处同步显示节点数据。" }
+      language: { emptyTable: "Tip: Shift + drag to box-select, double-click to select a subtree, or click a color in the legend to select by cell type. Selected nodes appear here." }
     });
   }
   function updateTable() {
@@ -426,15 +438,15 @@
   // =========================================================================
   function initPies() {
     if (state.piesReady) return;
-    Plotly.newPlot("pieTip", [], emptyLayout("选中 Tip 的 CellType 占比"), pieCfg());
-    Plotly.newPlot("pieInternal", [], emptyLayout("选中 Internal 的 CellType 占比"), pieCfg());
+    Plotly.newPlot("pieTip", [], emptyLayout("Cell type distribution (selected tips)"), pieCfg());
+    Plotly.newPlot("pieInternal", [], emptyLayout("Cell type distribution (internal nodes)"), pieCfg());
     state.piesReady = true;
   }
   function pieCfg() { return { displayModeBar: false, responsive: true }; }
   function emptyLayout(title) {
     return {
       title: { text: title, font: { size: 13 } }, margin: { l: 10, r: 10, t: 34, b: 10 },
-      annotations: [{ text: "无数据", showarrow: false, xref: "paper", yref: "paper", x: 0.5, y: 0.5, font: { size: 14, color: "#999" } }]
+      annotations: [{ text: "No data", showarrow: false, xref: "paper", yref: "paper", x: 0.5, y: 0.5, font: { size: 14, color: "#999" } }]
     };
   }
   function updatePies() {
@@ -442,8 +454,8 @@
     var idx = selectedIndices();
     var tips = idx.filter(function (i) { return state.isTip[i]; });
     var ints = idx.filter(function (i) { return !state.isTip[i]; });
-    drawPie("pieTip", tips, "选中 Tip 的 CellType 占比", false);
-    drawPie("pieInternal", ints, "选中 Internal 的 CellType 占比", true);
+    drawPie("pieTip", tips, "Cell type distribution (selected tips)", false);
+    drawPie("pieInternal", ints, "Cell type distribution (internal nodes)", true);
   }
   function drawPie(divId, idx, title, stageBreakdown) {
     if (!idx.length) {
@@ -472,11 +484,11 @@
         var lines = Object.keys(st).sort(function (a, b) { return st[b] - st[a]; })
           .map(function (s) { return "&nbsp;&nbsp;&nbsp;&nbsp;" + s + " hpf: " + (st[s] / N * 100).toFixed(1) + "%"; })
           .join("<br>");
-        return "<b>" + ct + "</b><br>数量: " + N + "<br>占比: " + pct + "%" + (lines ? "<br>" + lines : "");
+        return "<b>" + ct + "</b><br>Count: " + N + "<br>Share: " + pct + "%" + (lines ? "<br>" + lines : "");
       });
       trace.hoverinfo = "text";
     } else {
-      trace.hovertemplate = "%{label}<br>数量: %{value}<br>占比: %{percent}<extra></extra>";
+      trace.hovertemplate = "%{label}<br>Count: %{value}<br>Share: %{percent}<extra></extra>";
     }
     Plotly.react(divId, [trace], {
       title: { text: title, font: { size: 13 } }, margin: { l: 10, r: 10, t: 34, b: 10 }, showlegend: false
@@ -490,7 +502,7 @@
     fetch(DATA + encodeURIComponent(name) + ".json")
       .then(function (r) { return r.json(); })
       .then(function (d) { applyDataset(d); })
-      .catch(function (e) { alert("加载数据集失败: " + name + "\n" + e); });
+      .catch(function (e) { alert("Failed to load dataset: " + name + "\n" + e); });
   }
 
   function applyDataset(d) {
@@ -605,7 +617,7 @@
       });
       if (state.datasets.length) { sel.value = state.datasets[0]; loadDataset(state.datasets[0]); }
     }).catch(function (e) {
-      alert("初始化失败（无法读取 data/index.json 或 colors.json）：\n" + e);
+      alert("Initialization failed (could not load data/index.json or colors.json):\n" + e);
     });
   }
 

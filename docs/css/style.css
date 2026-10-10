@@ -223,8 +223,8 @@ hr { border: none; border-top: 1px solid var(--border); margin: 12px 0; }
 .pie { width: 100%; height: 100%; }
 
 /* 树节点 */
-.node circle { stroke: none; }
-.node circle.selected { fill: var(--accent) !important; stroke: var(--accent) !important; stroke-width: 0.6px; }
+path.node { stroke: none; }
+path.node.selected { stroke: #7f1d12; stroke-width: 0.7px; }
 .branch { fill: none; stroke: #c9ced3; stroke-width: 0.4px; }
 
 /* DataTables 字号微调 */

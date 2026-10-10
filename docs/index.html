@@ -1,60 +1,62 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>LEAP 交互式细胞谱系树</title>
+  <title>LEAP Interactive Cell Lineage Tree</title>
   <link rel="stylesheet" href="./vendor/dataTables.dataTables.min.css" />
   <link rel="stylesheet" href="./css/style.css" />
 </head>
 <body>
   <header class="topbar">
-    <div class="topbar-title">交互式树状图展示</div>
-    <div class="topbar-sub">LEAP · 细胞谱系树 (静态版)</div>
+    <div class="topbar-title">Interactive Cell Lineage Tree</div>
+    <div class="topbar-sub">LEAP &middot; zebrafish lineage explorer</div>
   </header>
 
   <div class="app">
-    <!-- 左侧栏 -->
+    <!-- Sidebar -->
     <aside class="sidebar">
       <div class="field">
-        <label for="selected_dataset">选择数据集:</label>
+        <label for="selected_dataset">Dataset:</label>
         <select id="selected_dataset"></select>
       </div>
 
       <div class="field">
-        <label for="LogTrans">log-transform (伪计数偏移): <span id="LogTransVal" class="val">0</span></label>
+        <label for="LogTrans">Log-transform (pseudocount offset): <span id="LogTransVal" class="val">0</span></label>
         <input type="range" id="LogTrans" min="0" max="10" step="0.5" value="0" />
       </div>
 
       <hr />
 
-      <button id="resetSelection" class="btn-reset" type="button">&#8634; 取消框选 (清空选中)</button>
+      <button id="resetSelection" class="btn-reset" type="button">&#8634; Clear selection</button>
 
       <p class="helpText">
-        操作：滚轮缩放，按住鼠标左键拖动平移；按住 <b>Shift + 左键</b> 拖拽即可框选节点；
-        <b>双击</b> 节点可选中该节点及其全部子节点；<b>单击</b> 节点切换选中；点击按钮或按 <b>Esc</b> 取消框选。
-        下方颜色图例可上下滚动，点击名称循环切换“勾选 Tip / Internal / 两者 / Internal+所有子节点”，点色块可换颜色。
+        <b>Scroll</b> to zoom, <b>drag</b> to pan. <b>Shift + drag</b> to box-select nodes.
+        <b>Double-click</b> a node to select it and its entire subtree. <b>Click</b> a node to toggle it.
+        Press <b>Esc</b> or use <b>Clear selection</b> to reset.
+        In the legend below, click a name to cycle <b>Tip / Internal / Both / Internal + descendants</b>,
+        or click a swatch to recolor a cell type.
       </p>
 
       <div class="leap-color-legend">
         <div class="leap-color-legend-title">
-          颜色 &#8596; 细胞类型 (点名称循环 Tip/Internal/两者/Internal+子节点，点色块换色)
+          Color &harr; cell type (click a name to cycle Tip / Internal / Both / Internal + desc; click a swatch to recolor)
         </div>
         <div id="colorLegendUI"></div>
       </div>
     </aside>
 
-    <!-- 主区域 -->
+    <!-- Main -->
     <main class="main">
       <section class="card tree-card">
-        <div class="card-header">交互式谱系树状图 (滚轮缩放 / 拖动平移 / Shift+拖拽框选 / 双击选子树)</div>
+        <div class="card-header">Interactive lineage tree &nbsp;&middot;&nbsp; scroll to zoom &middot; drag to pan &middot; Shift + drag to box-select &middot; double-click to select a subtree</div>
         <div class="card-body" id="treeBody">
           <div class="gray-toggle">
             <label class="switch">
               <input type="checkbox" id="tree_gray" />
               <span class="slider-toggle"></span>
             </label>
-            <span>置灰显示</span>
+            <span>Grayscale</span>
           </div>
           <div id="treeGirafe" class="tree-stage"></div>
           <div id="tooltip" class="leap-tooltip"></div>
@@ -64,7 +66,7 @@
 
       <section class="accordion" id="table_accordion">
         <button class="acc-header" id="accToggle" type="button" aria-expanded="false">
-          <span class="acc-caret">&#9656;</span> 选中节点详细信息 (左: 表格 / 右: TipAnn 占比)
+          <span class="acc-caret">&#9656;</span> Selected node details (left: table &middot; right: cell-type distribution)
         </button>
         <div class="acc-body" id="accBody" hidden>
           <div class="detail">
