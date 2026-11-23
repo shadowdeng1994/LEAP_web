@@ -2,7 +2,7 @@
  * 交互：滚轮缩放 / 拖动平移 / Shift 框选 / 单击切换 /
  * 双击选子树 / 颜色图例联动(Tip/Internal/两者/Internal+子节点, 换色) / 置灰 /
  * 选中节点表格 + Tip/Internal 的 CellType 占比饼图。
- * 数据来自 ./data/*.json。
+ * 数据来自 ./data/<species>/<database>/*.json。
  */
 (function () {
   "use strict";
@@ -13,7 +13,11 @@
 
   // ---- 全局状态 ----
   var state = {
+    // 目录结构：Species -> Database -> [Dataset, ...]
+    speciesList: [], speciesId: "", speciesName: "",
+    databases: [], databaseId: "", databaseName: "",
     datasets: [],
+    reqSeq: 0,             // 异步请求序号，用于丢弃过期响应
     colorMap: {},          // CellType -> 默认颜色（有序）
     overrides: {},         // 换色覆盖 CellType -> #hex
     gray: false,
@@ -482,7 +486,7 @@
         var N = counts[ct], pct = (N / total * 100).toFixed(1);
         var st = stageByCt[ct] || {};
         var lines = Object.keys(st).sort(function (a, b) { return st[b] - st[a]; })
-          .map(function (s) { return "&nbsp;&nbsp;&nbsp;&nbsp;" + s + " hpf: " + (st[s] / N * 100).toFixed(1) + "%"; })
+          .map(function (s) { return "&nbsp;&nbsp;&nbsp;&nbsp;" + s + ": " + (st[s] / N * 100).toFixed(1) + "%"; })
           .join("<br>");
         return "<b>" + ct + "</b><br>Count: " + N + "<br>Share: " + pct + "%" + (lines ? "<br>" + lines : "");
       });
@@ -496,13 +500,121 @@
   }
 
   // =========================================================================
-  // 数据集加载
+  // 数据加载（Species -> Database -> Dataset）
   // =========================================================================
+  // 数据来源：优先读取内嵌数据（本地单文件版 window.__LEAP_DATA__），
+  // 否则回退到 fetch ./data/<species>/<database>/*.json（GitHub Pages 版）。
+  //   key = "index"   -> 物种 / 数据库 / 数据集清单
+  //   key = "colors"  -> 当前 Database 的配色
+  //   其他 key        -> 当前 Database 下的某个 Dataset
+  function normalizeIndex(index) {
+    var list = (index && index.species) ? index.species : [];
+    list.forEach(function (sp) {
+      sp.id = sp.id || sp.name;
+      sp.name = sp.name || sp.id;
+      sp.databases = sp.databases || [];
+      sp.databases.forEach(function (db) {
+        db.id = db.id || db.name;
+        db.name = db.name || db.id;
+        db.datasets = db.datasets || [];
+      });
+    });
+    return list;
+  }
+
+  function dataDir(speciesId, databaseId) {
+    return DATA + encodeURIComponent(speciesId) + "/" + encodeURIComponent(databaseId) + "/";
+  }
+
+  function fetchJSON(key, speciesId, databaseId) {
+    var emb = window.__LEAP_DATA__;
+    if (emb) {
+      if (key === "index") return Promise.resolve(emb.index);
+      var ck = speciesId + "/" + databaseId;
+      if (key === "colors") return Promise.resolve((emb.colors || {})[ck] || {});
+      var dk = ck + "/" + key;
+      if (emb.datasets && emb.datasets[dk]) return Promise.resolve(emb.datasets[dk]);
+    }
+    var url = key === "index" ? DATA + "index.json"
+            : key === "colors" ? dataDir(speciesId, databaseId) + "colors.json"
+            : dataDir(speciesId, databaseId) + encodeURIComponent(key) + ".json";
+    return fetch(url).then(function (r) {
+      if (!r.ok) throw new Error("HTTP " + r.status + " - " + url);
+      return r.json();
+    });
+  }
+
   function loadDataset(name) {
-    fetch(DATA + encodeURIComponent(name) + ".json")
-      .then(function (r) { return r.json(); })
-      .then(function (d) { applyDataset(d); })
-      .catch(function (e) { alert("Failed to load dataset: " + name + "\n" + e); });
+    var seq = ++state.reqSeq;
+    var sp = state.speciesId, db = state.databaseId;
+    fetchJSON(name, sp, db)
+      .then(function (d) {
+        if (seq !== state.reqSeq) return;
+        applyDataset(d);
+      })
+      .catch(function (e) {
+        if (seq !== state.reqSeq) return;
+        alert("Failed to load dataset: " + sp + "/" + db + "/" + name + "\n" + e);
+      });
+  }
+
+  function fillSelect(sel, values, selected) {
+    sel.innerHTML = "";
+    values.forEach(function (v) {
+      var o = document.createElement("option");
+      o.value = typeof v === "string" ? v : v.id;
+      o.textContent = typeof v === "string" ? v : v.name;
+      sel.appendChild(o);
+    });
+    if (values.length) {
+      var ids = values.map(function (v) { return typeof v === "string" ? v : v.id; });
+      sel.value = selected != null && ids.indexOf(selected) >= 0 ? selected : ids[0];
+    }
+    sel.disabled = values.length === 0;
+  }
+
+  function loadSpecies(id) {
+    state.reqSeq++;
+    var sp = state.speciesList.filter(function (s) { return s.id === id; })[0] || null;
+    state.speciesId = sp ? sp.id : "";
+    state.speciesName = sp ? sp.name : "";
+    state.databases = sp ? (sp.databases || []) : [];
+    fillSelect($("selected_database"), state.databases, null);
+    if (state.databases.length) {
+      loadDatabase(state.databases[0].id);
+    } else {
+      state.databaseId = ""; state.databaseName = ""; state.datasets = [];
+      fillSelect($("selected_dataset"), [], null);
+      state.colorMap = {};
+      buildLegend();
+    }
+  }
+
+  function loadDatabase(id) {
+    var seq = ++state.reqSeq;
+    var db = state.databases.filter(function (d) { return d.id === id; })[0] || null;
+    state.databaseId = db ? db.id : "";
+    state.databaseName = db ? db.name : "";
+    state.datasets = db ? (db.datasets || []) : [];
+    fillSelect($("selected_dataset"), state.datasets, null);
+    if (!state.datasets.length) {
+      state.colorMap = {};
+      buildLegend();
+      return;
+    }
+    var sp = state.speciesId;
+    fetchJSON("colors", sp, state.databaseId)
+      .then(function (cm) {
+        if (seq !== state.reqSeq) return;
+        state.colorMap = cm || {};
+        loadDataset(state.datasets[0]);
+      })
+      .catch(function (e) {
+        if (seq !== state.reqSeq) return;
+        state.colorMap = {};
+        alert("Failed to load colours for database: " + sp + "/" + state.databaseId + "\n" + e);
+        loadDataset(state.datasets[0]);
+      });
   }
 
   function applyDataset(d) {
@@ -592,6 +704,12 @@
     $("resetSelection").addEventListener("click", function () {
       setSelection([]); clearLegendActive();
     });
+    $("selected_species").addEventListener("change", function (e) {
+      loadSpecies(e.target.value);
+    });
+    $("selected_database").addEventListener("change", function (e) {
+      loadDatabase(e.target.value);
+    });
     $("selected_dataset").addEventListener("change", function (e) {
       loadDataset(e.target.value);
     });
@@ -604,20 +722,14 @@
       }
     });
 
-    // 载入清单与颜色
-    Promise.all([
-      fetch(DATA + "index.json").then(function (r) { return r.json(); }),
-      fetch(DATA + "colors.json").then(function (r) { return r.json(); })
-    ]).then(function (res) {
-      state.datasets = res[0];
-      state.colorMap = res[1];
-      var sel = $("selected_dataset");
-      state.datasets.forEach(function (nm) {
-        var o = document.createElement("option"); o.value = nm; o.textContent = nm; sel.appendChild(o);
-      });
-      if (state.datasets.length) { sel.value = state.datasets[0]; loadDataset(state.datasets[0]); }
+    // 载入物种 / 数据库 / 数据集清单
+    fetchJSON("index").then(function (index) {
+      state.speciesList = normalizeIndex(index);
+      if (!state.speciesList.length) throw new Error("no species found in data/index.json");
+      fillSelect($("selected_species"), state.speciesList, null);
+      loadSpecies(state.speciesList[0].id);
     }).catch(function (e) {
-      alert("Initialization failed (could not load data/index.json or colors.json):\n" + e);
+      alert("Initialization failed (could not load data/index.json):\n" + e);
     });
   }
 

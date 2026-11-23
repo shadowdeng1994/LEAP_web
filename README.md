@@ -1,9 +1,9 @@
 # LEAP Interactive Cell Lineage Tree
 
-An interactive, in-browser visualization of zebrafish **cell lineage trees**. Each tree
-shows how individual cells relate across development, with every node colored by its
-cell type. Explore the lineage, select cells in several ways, and instantly see how the
-cell-type composition of your selection is distributed.
+An interactive, in-browser visualization of **cell lineage trees** across species and
+datasets. Each tree shows how individual cells relate across development, with every
+node colored by its cell type. Explore the lineage, select cells in several ways, and
+instantly see how the cell-type composition of your selection is distributed.
 
 **👉 Open it here (no download, no install, no sign-up):** https://shadowdeng1994.github.io/LEAP_web/
 
@@ -14,7 +14,9 @@ Everything below is a guide to using the page online.
 
 ## Features
 
-- **30 lineage trees** to choose from (e.g. `ZF_1.HMF1` … `ZF_15.HMF2`), switchable from a dropdown.
+- **Species → database → dataset selectors** in the left sidebar, so the same viewer can
+  host data for many organisms and multiple data collections.
+- **Multiple lineage trees**, switchable from cascading dropdowns.
 - **Circular lineage tree** with nodes colored by cell type; hover any node for its name and annotation.
 - **Smooth zoom & pan** — scroll to zoom, drag to pan.
 - **Multiple ways to select cells** — click, box-select, double-click a subtree, or select by cell type from the legend.
@@ -27,8 +29,15 @@ Everything below is a guide to using the page online.
 
 ## How to use
 
-### 1. Choose a tree
-Use the **dataset dropdown** in the left sidebar to load a different lineage tree.
+### 1. Choose a species, database and tree
+Use the three dropdowns in the left sidebar:
+
+- **Species** — the organism, e.g. `Danio rerio`.
+- **Database** — the data collection / source for that species, e.g. `ZF`.
+- **Dataset / tree** — the individual lineage tree to display.
+
+Changing the species repopulates the database list; changing the database repopulates
+the tree list and loads that database's colors.
 
 ### 2. Navigate
 - **Zoom:** scroll the mouse wheel.
@@ -64,12 +73,59 @@ Open the **“Selected node details”** panel at the bottom:
   `Depth`, `branch.length`, `ParentLabel`, `ParentAnn`), with search, column sorting and pagination.
 - **Right — pie charts:** the **cell-type distribution** of your selection, shown separately for
   selected **tips** and selected **internal** nodes. Hover a slice for counts and percentages
-  (the internal-node chart also breaks each type down by developmental stage, in hpf).
+  (the internal-node chart also breaks each type down by developmental stage).
 
 ### 6. Display options
-- **Grayscale:** toggle **“置灰显示 / Grayscale”** to render all nodes in gray (useful for focusing on tree shape).
+- **Grayscale:** toggle **“Grayscale”** to render all nodes in gray (useful for focusing on tree shape).
 - **Log-transform:** the slider applies a log transform (with a pseudocount offset) to branch depth,
   which compresses long branches and spreads out short ones.
+
+---
+
+## Data layout
+
+Data is organized as **species → database → dataset**:
+
+```
+docs/data/
+  index.json                       # manifest: species → databases → datasets
+  <species>/
+    <database>/
+      colors.json                  # cell type → color
+      <dataset>.json               # one lineage tree
+```
+
+`docs/data/index.json` looks like this:
+
+```json
+{
+  "species": [
+    {
+      "id": "danio_rerio",
+      "name": "Danio rerio",
+      "databases": [
+        {
+          "id": "ZF",
+          "name": "ZF",
+          "datasets": ["ZF_1.HMF1", "ZF_1.HMF2"]
+        }
+      ]
+    }
+  ]
+}
+```
+
+- `id` is the folder name (URL-safe); `name` is what the dropdown shows.
+- Add a new species or database by creating the folder and adding an entry to `index.json`.
+- Each dataset file is loaded from `docs/data/<species-id>/<database-id>/<dataset>.json`.
+
+### Rebuilding the offline single-file view
+
+After changing the data or front-end files, regenerate the standalone HTML:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File local\build_local.ps1
+```
 
 ---
 

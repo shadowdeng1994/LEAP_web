@@ -10,14 +10,24 @@
 <body>
   <header class="topbar">
     <div class="topbar-title">Interactive Cell Lineage Tree</div>
-    <div class="topbar-sub">LEAP &middot; zebrafish lineage explorer</div>
+    <div class="topbar-sub">LEAP &middot; multi-species lineage explorer</div>
   </header>
 
   <div class="app">
     <!-- Sidebar -->
     <aside class="sidebar">
       <div class="field">
-        <label for="selected_dataset">Dataset:</label>
+        <label for="selected_species">Species:</label>
+        <select id="selected_species"></select>
+      </div>
+
+      <div class="field">
+        <label for="selected_database">Database:</label>
+        <select id="selected_database"></select>
+      </div>
+
+      <div class="field">
+        <label for="selected_dataset">Dataset / tree:</label>
         <select id="selected_dataset"></select>
       </div>
 
